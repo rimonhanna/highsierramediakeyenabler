@@ -2,6 +2,7 @@
 #import "GBLaunchAtLogin.h"
 #import "iTunes.h"
 #import "Spotify.h"
+#import "YTMusic.h"
 #import <ScriptingBridge/ScriptingBridge.h>
 
 typedef NS_ENUM(NSInteger, MediaKeysPrioritize)
@@ -11,7 +12,9 @@ typedef NS_ENUM(NSInteger, MediaKeysPrioritize)
     // If both apps are open, prioritize iTunes over Spotify
     MediaKeysPrioritizeITunes,
     // If both apps are open, prioritize Spotify over iTunes
-    MediaKeysPrioritizeSpotify
+    MediaKeysPrioritizeSpotify,
+    // If apps are open, prioritize Other over iTunes & Spotify
+    MediaKeysPrioritizeOther
 };
 
 typedef NS_ENUM(NSInteger, PauseState)
@@ -102,6 +105,8 @@ static CGEventRef tapEventCallback(CGEventTapProxy proxy, CGEventType type, CGEv
         
         iTunesApplication *iTunes = [SBApplication applicationWithBundleIdentifier:@"com.apple.iTunes"];
         SpotifyApplication *spotify = [SBApplication applicationWithBundleIdentifier:@"com.spotify.client"];
+        YTMusicApplication *ytmusic = [SBApplication applicationWithBundleIdentifier:@"rimon.hanna.YTMusic"];
+        
         
         if ( pauseState == PauseStatePause )
         {
@@ -110,7 +115,7 @@ static CGEventRef tapEventCallback(CGEventTapProxy proxy, CGEventType type, CGEv
         
         if ( pauseState == PauseStateAutomatic )
         {
-            if (![spotify isRunning ] && ![iTunes isRunning ] )
+            if (![spotify isRunning ] && ![iTunes isRunning ] && ![ytmusic isRunning ])
             {
                 return event;
             }
@@ -123,6 +128,32 @@ static CGEventRef tapEventCallback(CGEventTapProxy proxy, CGEventType type, CGEv
         {
             switch ( mediaKeysPriority )
             {
+                case MediaKeysPrioritizeOther:
+                {
+                    if (!ytmusic) break;
+                    
+                    switch (keyCode)
+                    {
+                            case NX_KEYTYPE_PLAY:
+                        {
+                           [ytmusic playpause];
+                            break;
+                        }
+                            case NX_KEYTYPE_NEXT:
+                            case NX_KEYTYPE_FAST:
+                        {
+                            [ytmusic nextTrack];
+                            break;
+                        };
+                            case NX_KEYTYPE_PREVIOUS:
+                            case NX_KEYTYPE_REWIND:
+                        {
+                            [ytmusic previousTrack];
+                            break;
+                        }
+                    }
+                    break;
+                }
                 case MediaKeysPrioritizeITunes:
                 {
                     switch (keyCode)
@@ -191,6 +222,7 @@ static CGEventRef tapEventCallback(CGEventTapProxy proxy, CGEventType type, CGEv
                     {
                         case NX_KEYTYPE_PLAY:
                         {
+                            if ( [ytmusic isRunning ] ) [ytmusic playpause];
                             if ( [spotify isRunning ] ) [spotify playpause];
                             if ( [iTunes isRunning ] ) [iTunes playpause];
                             break;
@@ -198,6 +230,7 @@ static CGEventRef tapEventCallback(CGEventTapProxy proxy, CGEventType type, CGEv
                         case NX_KEYTYPE_NEXT:
                         case NX_KEYTYPE_FAST:
                         {
+                            if ( [ytmusic isRunning ] ) [ytmusic nextTrack];
                             if ( [spotify isRunning ] ) [spotify nextTrack];
                             if ( [iTunes isRunning ] ) [iTunes nextTrack];
                             break;
@@ -205,6 +238,7 @@ static CGEventRef tapEventCallback(CGEventTapProxy proxy, CGEventType type, CGEv
                         case NX_KEYTYPE_PREVIOUS:
                         case NX_KEYTYPE_REWIND:
                         {
+                            if ( [ytmusic isRunning ] ) [ytmusic previousTrack];
                             if ( [spotify isRunning ] ) [spotify previousTrack];
                             if ( [iTunes isRunning ] ) [iTunes backTrack];
                             break;
@@ -308,6 +342,7 @@ static CGEventRef tapEventCallback(CGEventTapProxy proxy, CGEventType type, CGEv
     [priorityOptionItems addObject:[ menu addItemWithTitle: NSLocalizedString(@"Send events to both players", @"Send events to both players") action : @selector(prioritizeNone) keyEquivalent : @"" ]];
     [priorityOptionItems addObject:[ menu addItemWithTitle: NSLocalizedString(@"Prioritize iTunes", @"Prioritize iTunes") action : @selector(prioritizeITunes) keyEquivalent : @"" ]];
     [priorityOptionItems addObject:[ menu addItemWithTitle: NSLocalizedString(@"Prioritize Spotify", @"Prioritize Spotify") action : @selector(prioritizeSpotify) keyEquivalent : @"" ]];
+    [priorityOptionItems addObject:[ menu addItemWithTitle: NSLocalizedString(@"Prioritize YTMusic", @"Prioritize YTMusic") action : @selector(prioritizeOther) keyEquivalent : @"" ]];
 
     [ menu addItem : [ NSMenuItem separatorItem ] ]; // A thin grey line
 
@@ -324,7 +359,7 @@ static CGEventRef tapEventCallback(CGEventTapProxy proxy, CGEventType type, CGEv
     [ image setTemplate : YES ];
     
     statusItem = [ [ NSStatusBar systemStatusBar ] statusItemWithLength : NSVariableStatusItemLength ];
-    [ statusItem setToolTip : @"High Sierra Media Key Enabler" ];
+    [ statusItem setToolTip : @"Media Key Enabler" ];
     [ statusItem setMenu : menu ];
     [ statusItem setImage : image ];
     
@@ -367,7 +402,7 @@ static CGEventRef tapEventCallback(CGEventTapProxy proxy, CGEventType type, CGEv
 
 - ( void ) update
 {
-    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString: @"http://milgra.com/high-sierra-media-key-enabler.html"]];
+    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString: @"http://milgra.com/media-key-enabler.html"]];
 }
 
 
@@ -390,6 +425,13 @@ static CGEventRef tapEventCallback(CGEventTapProxy proxy, CGEventType type, CGEv
 - (void)prioritizeSpotify
 {
     mediaKeysPriority = MediaKeysPrioritizeSpotify;
+    [[NSUserDefaults standardUserDefaults] setObject:@(mediaKeysPriority) forKey:kUserDefaultsPriorityOptionKey];
+    [self updateOptionState];
+}
+
+- (void)prioritizeOther
+{
+    mediaKeysPriority = MediaKeysPrioritizeOther;
     [[NSUserDefaults standardUserDefaults] setObject:@(mediaKeysPriority) forKey:kUserDefaultsPriorityOptionKey];
     [self updateOptionState];
 }

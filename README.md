@@ -1,4 +1,4 @@
-# HighSierraMediaKeyEnabler [![Build Status](https://travis-ci.org/milgra/highsierramediakeyenabler.svg?branch=master)](https://travis-ci.org/milgra/highsierramediakeyenabler#)
+# MediaKeyEnabler [![Build Status](https://travis-ci.org/milgra/mediakeyenabler.svg?branch=master)](https://travis-ci.org/milgra/mediakeyenabler#)
 
 macOS High Sierra Media Key Enabler for iTunes and Spotify.
 
